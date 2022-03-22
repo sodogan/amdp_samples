@@ -1,121 +1,48 @@
-class zcl_sodogan_amdp_driver definition
+class zcl_sodogan_amdp_material definition
   public
   final
   create public .
 
-  public section.
-    interfaces if_oo_adt_classrun.
+   public section.
+   types: begin of ty_material,
+           matnr type mara-matnr,
+           matkl type mara-matkl,
+           mtart type mara-mtart,
+           maktx type makt-maktx,
+           end of ty_material.
+
+   types: tt_mara type standard table of ty_material with empty key.
+   interfaces if_amdp_marker_hdb .
+   class-methods get_material_data importing value(iv_matnr) type mara-matnr
+                                             value(iv_mandt) type sy-mandt
+                                   exporting value(et_data) type tt_mara
+                                   .
 
   protected section.
-
   private section.
-    methods select_from_internal_tab.
 endclass.
 
 
 
-class zcl_sodogan_amdp_driver implementation.
+class zcl_sodogan_amdp_material implementation.
+  method get_material_data by database procedure
+                           for hdb language sqlscript
+                           options read-only
+                           using mara makt.
+**Get the current client
+*  declare lv_mandt  nvarchar( 13 );
+ 
 
-  method if_oo_adt_classrun~main.
-    if  cl_abap_dbfeatures=>use_features(
-    requested_features = value #( ( cl_abap_dbfeatures=>amdp_table_function )
-     ( cl_abap_dbfeatures=>call_amdp_method )
-     ) ) .
-
-**Test the AMDP here to select from MARA table!
-      data: lv_matnr type mara-matnr value  '2500000000'.
-      data(lv_matnr_str) = |{ lv_matnr alpha = in  }|.
-
-      data: ld_delivery_number type vbeln_vl value '80003371'.
-      data: ls_delivery_header type likp.
-
-      data(ls_delivery_number) = |{ ld_delivery_number alpha = in }|.
-
-
-      select_from_internal_tab(  ).
-
-      zcl_sodogan_amdp_test1=>get_material_data(
-      exporting
-      iv_mandt = sy-mandt
-      iv_matnr = lv_matnr
-      importing
-      et_data =  data(lt_data)
-      ).
-
-      out->write( lt_data ).
-    else.
-      out->write( 'AMDP not supported here!' ).
-    endif.
-  endmethod.
-
-  method select_from_internal_tab.
-    types: tt_scarr type standard table of scarr with empty key.
-    DATA:lr_carrid type range of scarr-carrid.
-    break sodogan.
-
-    DATA(lt_carriers) = value tt_scarr(
-    ( carrid = 'AA' carrname ='aa here')
-    ( carrid = 'AB' carrname ='ab here')
-
-    ).
-
-
-    select carrid,
-           SUM( distance ) as total_distance
-           from spfli
-      into table @data(lt_total_distance)
-      group by carrid
-      order by carrid
-     .
-
-
-   select 'I' as sign,
-          'EQ' as option,
-           carrid as low
-         from scarr
-      into table @lr_carrid
-   .
-
-
-   select 'I' as sign,
-          'EQ' as option,
-           carrid as low
-         from @lt_carriers as carriers
-     where carriers~carrid ='AB'
-      into table @lr_carrid
-   .
-
-
-    select * from scarr
-    into table @data(lt_scarr)
-    where carrid = 'AA'
-    .
-
-
-    select * from spfli
-    for all entries in @lt_scarr
-    where carrid = @lt_scarr-carrid
-    into table @data(lt_spfli)
-     .
-
-    data(lt_filter) = value tt_scarr( ( carrid = 'AA' ) ).
-
-    select s~carrid,
-           f~carrname
-            from spfli as s
-    inner join @lt_filter as f
-     on s~carrid = f~carrid
-    into table @data(lt_test)
-
-    .
-
-
-
-    break sodogan.
-
-
-
-
+  et_data = select M.matnr,
+                   M.matkl,
+                   M.mtart,
+                   X.maktx
+               from mara as M
+               inner join makt as X on
+               M.mandt = X.mandt AND
+               M.matnr = X.matnr
+             where M.mandt = :iv_mandt
+             AND M.matnr = :iv_matnr ;
 
   endmethod.
 
